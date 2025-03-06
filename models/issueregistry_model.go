@@ -12,4 +12,10 @@ type IssueRegistry struct {
 	ExpectedReturnDate time.Time `gorm:"not null" binding:"required" json:"expected_return_date"`
 	ReturnDate         time.Time `gorm:"not null" binding:"required" json:"return_date"`
 	ReturnApproverID   uint      `gorm:"not null" binding:"required" json:"returnapproverID"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+
+	Reader User `gorm:"foreignKey:ReaderID"`
+	Book     Books `gorm:"foreignKey:ISBN"`
+	Approver User `gorm:"foreignKey:IssueApproverID"`
 }

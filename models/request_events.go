@@ -10,4 +10,10 @@ type RequestEvents struct {
 	ApprovalDate time.Time `gorm:"not null" binding:"required" json:"approval_date"`
 	ApproverID   uint      `gorm:"not null" binding:"required" json:"approverID"`
 	RequestType  string    `gorm:"not null" binding:"required,oneof=issue return" json:"request_type" `
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+
+	Book     Books `gorm:"foreignKey:BookID"`
+	Reader   User  `gorm:"foreignKey:ReaderID"`
+	Approver User  `gorm:"foreignKey:ApproverID"`
 }
