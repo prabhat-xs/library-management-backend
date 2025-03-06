@@ -7,7 +7,6 @@ import (
 	"github.com/joho/godotenv"
 	cors "github.com/rs/cors/wrapper/gin"
 	"github.com/prabhat-xs/library-management-backend/config"
-	"github.com/prabhat-xs/library-management-backend/models"
 )
 
 func main() {
@@ -17,7 +16,6 @@ func main() {
 	}
 
 	config.ConnectDatabase()
-	models.MigrateDB(config.DB)
 
 	r := gin.Default()
 
