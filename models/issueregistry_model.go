@@ -16,6 +16,5 @@ type IssueRegistry struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 
 	Reader User `gorm:"foreignKey:ReaderID"`
-	// Book     Books `gorm:"foreignKey:ISBN;references:ISBN"`
 	Approver User `gorm:"foreignKey:IssueApproverID"`
 }
