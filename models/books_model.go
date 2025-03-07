@@ -15,5 +15,5 @@ type Books struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 
 	IssueRequests []RequestEvents `gorm:"foreignKey:BookID"`
-	Issues        []IssueRegistry `gorm:"foreignKey:IssueID"`
+	Issues        []IssueRegistry `gorm:"foreignKey:ISBN"`
 }

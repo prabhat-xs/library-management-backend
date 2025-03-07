@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -15,11 +14,12 @@ var DB *gorm.DB
 
 func ConnectDatabase() {
 
-	dsn := os.Getenv("DATABASE_URL")
+	// dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("DATABASE_URL_LOCAL")
 
 	// Connect to the database
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		 Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -40,8 +40,8 @@ func ConnectDatabase() {
 	}
 
 	err = DB.AutoMigrate(
-		&models.Library{},
 		&models.User{},
+		&models.Library{},
 		&models.Books{},
 		&models.RequestEvents{},
 		&models.IssueRegistry{},
@@ -50,6 +50,6 @@ func ConnectDatabase() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	fmt.Println("Successfully connected to Neon Postgres database!")
+	log.Println("Successfully connected to Postgres database!")
 
 }
