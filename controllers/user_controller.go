@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -13,6 +12,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var library models.Library
+
 func RegisterUser(c *gin.Context) {
 	var user models.User
 
@@ -23,6 +24,30 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
+	if err := config.DB.Where("Email=?", user.Email).First(&user).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User with this email already exists!"})
+		return
+	}
+
+	if user.Role == "owner" {
+		if user.LibName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":       "Library name missing!",
+				"description": "New owners must provide a name for their library!",
+			})
+			return
+		}
+		library.Name = user.LibName
+
+		if err := config.DB.Create(&library).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+		user.LibID = library.ID
+
+	}
+
 	hashed, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -30,9 +55,10 @@ func RegisterUser(c *gin.Context) {
 		})
 	}
 
+	
 	user.Password = string(hashed)
 
-	if err = config.DB.Create(&user).Error; err != nil {
+	if err := config.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -84,3 +110,6 @@ func LoginUser(c *gin.Context) {
 	})
 
 }
+
+
+
