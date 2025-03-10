@@ -37,12 +37,12 @@ func Signup(c *gin.Context) {
 	// PASSWORD HASHING
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	user := models.User{
-		Name:          input.Name,
-		Email:         input.Email,
-		Password:      string(hashedPassword),
+		Name:           input.Name,
+		Email:          input.Email,
+		Password:       string(hashedPassword),
 		Contact_number: input.ContactNumber,
-		Role:          "Owner",
-		LibID:         library.ID,
+		Role:           "Owner",
+		LibID:          library.ID,
 	}
 	config.DB.Create(&user)
 	c.JSON(http.StatusOK, gin.H{"message": "Owner account created successfully"})
@@ -74,11 +74,97 @@ func Login(c *gin.Context) {
 	}
 
 	// TOKEN GENERATION
-	token, _ := utils.GenerateJWT(user.Email, user.Role,user.ID)
+	token, _ := utils.GenerateJWT(user.Email, user.Role, user.ID)
 
 	// FOR SETTING SECURE SITE
-	prodMode := os.Getenv("PROD_MODE")=="true"
-	c.SetCookie("token", token, 3600*72, "/", "localhost",prodMode, true) 
+	prodMode := os.Getenv("PROD_MODE") == "true"
+	c.SetCookie("token", token, 3600*72, "/", "localhost", prodMode, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+}
+
+// CREATING ADMIN USER
+func CreateAdminUser(c *gin.Context) {
+	var input struct {
+		Name          string `json:"name" binding:"required"`
+		Email         string `json:"email" binding:"required"`
+		Password      string `json:"password" binding:"required"`
+		ContactNumber string `json:"contactNumber" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// VALIDATING OWNER USING COOKIES
+	ownerEmail, _ := c.Get("email")
+	var owner models.User
+	if err := config.DB.Where("email = ?", ownerEmail).First(&owner).Error; err != nil || owner.Role != "Owner" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	adminUser := models.User{
+		Name:           input.Name,
+		Email:          input.Email,
+		Password:       string(hashedPassword),
+		Contact_number: input.ContactNumber,
+		Role:           "Admin",
+		LibID:          owner.LibID,
+	}
+
+	if err := config.DB.Create(&adminUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create admin user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Admin user created successfully"})
+}
+
+// CREATING READER USER
+func CreateReaderUser(c *gin.Context) {
+	var input struct {
+		Name          string `json:"name" binding:"required"`
+		Email         string `json:"email" binding:"required"`
+		Password      string `json:"password" binding:"required"`
+		ContactNumber string `json:"contactNumber" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// VALIDATING ADMIN USER USING COOKIES
+	adminEmail, _ := c.Get("email")
+	var admin models.User
+	if err := config.DB.Where("email = ?", adminEmail).First(&admin).Error; err != nil || admin.Role != "Admin" || admin.Role != "Owner" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	readerUser := models.User{
+		Name:           input.Name,
+		Email:          input.Email,
+		Password:       string(hashedPassword),
+		Contact_number: input.ContactNumber,
+		Role:           "Reader",
+		LibID:          admin.LibID,
+	}
+
+	if err := config.DB.Create(&readerUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create reader user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Reader user created successfully"})
+}
+
+// LOGOUT FUNCTIONALITY
+func Logout(c *gin.Context) {
+	c.SetCookie("token", "", -1, "/", "localhost", false, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

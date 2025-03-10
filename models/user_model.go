@@ -10,7 +10,6 @@ type User struct {
 	Contact_number string    `gorm:"not null" binding:"required" json:"contact_number"`
 	Role           string    `gorm:"not null" binding:"required,oneof=owner admin reader" json:"role"`
 	LibID          uint      `json:"lib_ID"`
-	LibName        string    `json:"lib_name"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
