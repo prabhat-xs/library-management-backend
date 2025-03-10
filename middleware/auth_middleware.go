@@ -1,5 +1,38 @@
 package middleware
 
-func auth(){
-	
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/prabhat-xs/library-management-backend/utils"
+)
+
+func AuthMiddleware(roles ...string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        tokenString, err := c.Cookie("token")
+        if err != nil || tokenString == "" {
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+            return
+        }
+
+        email, role, err := utils.ValidateJWT(tokenString)
+        if err != nil || !contains(roles, role) {
+            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+            return
+        }
+
+        c.Set("email", email)
+        c.Set("role", role)
+        c.Next()
+    }
+}
+
+
+func contains(slice []string, item string) bool {
+    for _, v := range slice {
+        if v == item {
+            return true
+        }
+    }
+    return false
 }
