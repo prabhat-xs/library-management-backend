@@ -5,8 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	cors "github.com/rs/cors/wrapper/gin"
 	"github.com/prabhat-xs/library-management-backend/config"
+	"github.com/prabhat-xs/library-management-backend/routes"
+	cors "github.com/rs/cors/wrapper/gin"
 )
 
 func main() {
@@ -16,15 +17,10 @@ func main() {
 	}
 
 	config.ConnectDatabase()
-
 	r := gin.Default()
 
+	routes.SetupRoutes(r)
 	r.Use(cors.Default())
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
 	r.Run()
 }
