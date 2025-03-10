@@ -140,7 +140,7 @@ func CreateReaderUser(c *gin.Context) {
 	// VALIDATING ADMIN USER USING COOKIES
 	adminEmail, _ := c.Get("email")
 	var admin models.User
-	if err := config.DB.Where("email = ?", adminEmail).First(&admin).Error; err != nil || admin.Role != "Admin" || admin.Role != "Owner" {
+	if err := config.DB.Where("email = ?", adminEmail).First(&admin).Error; err != nil || !(admin.Role == "Admin" || admin.Role == "Owner") {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
