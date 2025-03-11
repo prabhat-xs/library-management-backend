@@ -7,6 +7,6 @@ type Library struct {
 	Name      string    `binding:"required" gorm:"unique;not null" json:"lib_name"`
 	CreatedAt time.Time `json:"created_at"`
 
-	Users []User `gorm:"foreignKey:LibID"`
-	Books []Books `gorm:"foreignKey:LibID"`
+	Users []User  `gorm:"foreignKey:LibID"`
+	Books []Books `gorm:"foreignKey:LibID;constraint:OnDelete:CASCADE"`
 }

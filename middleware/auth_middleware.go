@@ -15,13 +15,15 @@ func AuthMiddleware(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		id, email, role, err := utils.ValidateJWT(tokenString)
+		id, LibID, email, role, err := utils.ValidateJWT(tokenString)
 		if err != nil || !contains(roles, role) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}
 		id = uint(id)
+		LibID = uint(LibID)
 		c.Set("id", id)
+		c.Set("libid", LibID)
 		c.Set("email", email)
 		c.Set("role", role)
 		c.Next()

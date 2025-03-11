@@ -34,10 +34,8 @@ func RaiseIssueRequest(c *gin.Context) {
 		return
 	}
 
-	
 	floatId, _ := c.Get("id")
 	id := floatId.(uint)
-	
 
 	// TODO This needs to be validated using issue registry table
 	// var issueReq models.RequestEvents
@@ -84,9 +82,10 @@ func ListRequests(c *gin.Context) {
 	})
 }
 
-func ApproveIssueRequest(c *gin.Context) {
+func ProcessIssueRequest(c *gin.Context) {
 	var input struct {
-		ReqID uint `binding:"required"`
+		ReqID  uint   `binding:"required"`
+		Action string `biding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -94,8 +93,20 @@ func ApproveIssueRequest(c *gin.Context) {
 		return
 	}
 
+	if input.Action != "approve" && input.Action != "reject" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Allowed actions are approve or reject",
+		})
+	}
+
+	if input.Action == "reject" {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Request processed succesfully! Issue req rejected!",
+		})
+	}
+
 	// GETTING ADMIN ID from JWT
-	id, _ := c.Get("id")	
+	id, _ := c.Get("id")
 	ApproverID := id.(uint)
 
 	txErr := config.DB.Transaction(func(tx *gorm.DB) error {
@@ -118,7 +129,7 @@ func ApproveIssueRequest(c *gin.Context) {
 			ISBN:               book.ISBN,
 			ReaderID:           req.ReaderID,
 			IssueApproverID:    ApproverID,
-			IssueStatus:        "Issued",
+			IssueStatus:        input.Action,
 			IssueDate:          now,
 			ExpectedReturnDate: now.AddDate(0, 0, 14),
 		}
