@@ -8,31 +8,31 @@ import (
 )
 
 func AuthMiddleware(roles ...string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        tokenString, err := c.Cookie("token")
-        if err != nil || tokenString == "" {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-            return
-        }
+	return func(c *gin.Context) {
+		tokenString, err := c.Cookie("token")
+		if err != nil || tokenString == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
 
-        email, role, err := utils.ValidateJWT(tokenString)
-        if err != nil || !contains(roles, role) {
-            c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
-            return
-        }
-
-        c.Set("email", email)
-        c.Set("role", role)
-        c.Next()
-    }
+		id, email, role, err := utils.ValidateJWT(tokenString)
+		if err != nil || !contains(roles, role) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
+		}
+		id = uint(id)
+		c.Set("id", id)
+		c.Set("email", email)
+		c.Set("role", role)
+		c.Next()
+	}
 }
 
-
 func contains(slice []string, item string) bool {
-    for _, v := range slice {
-        if v == item {
-            return true
-        }
-    }
-    return false
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
 }

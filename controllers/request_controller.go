@@ -34,15 +34,10 @@ func RaiseIssueRequest(c *gin.Context) {
 		return
 	}
 
-	email, _ := c.Get("email")
-
-	var reader models.User
-
-	if err := config.DB.Where("email = ?", email).First(&reader).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-	}
+	
+	floatId, _ := c.Get("id")
+	id := floatId.(uint)
+	
 
 	// TODO This needs to be validated using issue registry table
 	// var issueReq models.RequestEvents
@@ -57,7 +52,7 @@ func RaiseIssueRequest(c *gin.Context) {
 
 	// TODO temporary check, better implementation using registry table to be done
 	var issueReq models.RequestEvents
-	if err := config.DB.Where("reader_Id= ? AND book_ID = ? ", reader.ID, input.ISBN).Take(&issueReq).Error; err == nil {
+	if err := config.DB.Where("reader_Id= ? AND book_ID = ? ", id, input.ISBN).Take(&issueReq).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Duplicate request!",
 		})
@@ -67,7 +62,7 @@ func RaiseIssueRequest(c *gin.Context) {
 
 	reqEvent := models.RequestEvents{
 		BookID:      input.ISBN,
-		ReaderID:    reader.ID,
+		ReaderID:    id,
 		RequestType: input.RequestType,
 		RequestDate: time.Now(),
 	}
@@ -99,15 +94,9 @@ func ApproveIssueRequest(c *gin.Context) {
 		return
 	}
 
-	// GETTING ADMIN DETAILS
-	email, _ := c.Get("email")
-	var admin models.User
-	if err := config.DB.Where("email = ?", email).First(&admin).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-	}
-	ApproverID := admin.ID
+	// GETTING ADMIN ID from JWT
+	id, _ := c.Get("id")	
+	ApproverID := id.(uint)
 
 	txErr := config.DB.Transaction(func(tx *gorm.DB) error {
 		var req models.RequestEvents

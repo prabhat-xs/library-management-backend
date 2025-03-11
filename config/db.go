@@ -15,8 +15,8 @@ var DB *gorm.DB
 func ConnectDatabase() {
 
 	// Postgres or NeonDB connection string
-	dsn := os.Getenv("DATABASE_URL")
-	// dsn := os.Getenv("DATABASE_URL_LOCAL")
+	// dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("DATABASE_URL_LOCAL")
 
 	// Connect to the database
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{

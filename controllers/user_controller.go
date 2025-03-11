@@ -74,7 +74,7 @@ func Login(c *gin.Context) {
 	}
 
 	// TOKEN GENERATION
-	token, _ := utils.GenerateJWT(user.Email, user.Role, user.ID)
+	token, _ := utils.GenerateJWT(user.ID, user.Email, user.Role)
 
 	// FOR SETTING SECURE SITE
 	prodMode := os.Getenv("PROD_MODE") == "true"
