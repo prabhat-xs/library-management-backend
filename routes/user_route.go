@@ -27,6 +27,7 @@ func SetupRoutes(r *gin.Engine) {
     admin := r.Group("v1/admin/").Use(middleware.AuthMiddleware( "Admin"))
     {
         admin.POST("/books/add", controllers.AddBook)
+        admin.GET("/requests/all", controllers.ListRequests)
         admin.POST("/requests/approve", controllers.ApproveIssueRequest)
         admin.POST("/create-reader", controllers.CreateReaderUser)
         admin.GET("/books/search", controllers.SearchBook)
