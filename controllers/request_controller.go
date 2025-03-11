@@ -14,7 +14,7 @@ import (
 func RaiseIssueRequest(c *gin.Context) {
 	var input struct {
 		ISBN        uint   `binding:"required"`
-		RequestType string `binding:"required"`
+		RequestType string `binding:"required"` 
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -84,10 +84,9 @@ func ListRequests(c *gin.Context) {
 
 func ProcessIssueRequest(c *gin.Context) {
 	var input struct {
-		ReqID  uint   `binding:"required"`
-		Action string `biding:"required"`
+		Action string `binding:"required" json:"action"`
+		ReqID  uint   `binding:"required" json:"reqid"`
 	}
-
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -97,12 +96,14 @@ func ProcessIssueRequest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Allowed actions are approve or reject",
 		})
+		return
 	}
 
 	if input.Action == "reject" {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Request processed succesfully! Issue req rejected!",
 		})
+		return
 	}
 
 	// GETTING ADMIN ID from JWT

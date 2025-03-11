@@ -29,7 +29,7 @@ func SetupRoutes(r *gin.Engine) {
 		admin.PATCH("/books/add", controllers.UpdateBook)
 		admin.DELETE("/books/:isbn", controllers.DeleteBook)
 		admin.GET("/requests/all", controllers.ListRequests)
-		admin.POST("/requests/approve", controllers.ProcessIssueRequest)
+		admin.POST("/requests/process", controllers.ProcessIssueRequest)
 	}
 
 	reader := r.Group("v1/reader/").Use(middleware.AuthMiddleware("Reader"))
