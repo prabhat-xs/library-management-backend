@@ -46,8 +46,8 @@ func ConnectDatabase() {
 		&models.Library{},
 		&models.User{},
 		&models.Books{},
-		&models.RequestEvents{},
 		&models.IssueRegistry{},
+		&models.RequestEvents{},
 	)
 
 	if err != nil {

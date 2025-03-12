@@ -42,7 +42,7 @@ func Signup(c *gin.Context) {
 		Password:       string(hashedPassword),
 		Contact_number: input.ContactNumber,
 		Role:           "Owner",
-		LibID:          library.ID,
+		LibID:          library.LibID,
 	}
 	config.DB.Create(&user)
 	c.JSON(http.StatusOK, gin.H{"message": "Owner account created successfully"})
@@ -74,7 +74,7 @@ func Login(c *gin.Context) {
 	}
 
 	// TOKEN GENERATION
-	token, _ := utils.GenerateJWT(user.ID,user.LibID, user.Email, user.Role)
+	token, _ := utils.GenerateJWT(user.ID, user.LibID, user.Email, user.Role)
 
 	// FOR SETTING SECURE SITE
 	prodMode := os.Getenv("PROD_MODE") == "true"
@@ -161,6 +161,53 @@ func CreateReaderUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Reader user created successfully"})
+}
+
+// UPDATE USER PASSWORD
+func UpdatePassword(c *gin.Context) {
+	var input struct {
+		oldPassword string `binding:"required"`
+		newPassword string `binding:"required"`
+	}
+
+	// INPUT VALIDATION
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	email, _ := c.Get("email")
+	// FETCHING USER INFORMATION
+	var user models.User
+	if err := config.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// EXISTING PASSWORD VERIFICATION
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.oldPassword)) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Wrong Password"})
+		return
+	}
+
+	// NEW PASSWORD HASHING AND SAVING
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.newPassword), bcrypt.DefaultCost) //; err != nil {
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Bcrypt failed to generate password!",
+		})
+		return
+	}
+
+	user.Password = string(hashedPassword)
+	config.DB.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Pasword updated successfully!",
+	})
+
 }
 
 // LOGOUT FUNCTIONALITY
