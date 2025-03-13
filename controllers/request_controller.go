@@ -37,6 +37,8 @@ func RaiseIssueRequest(c *gin.Context) {
 	floatId, _ := c.Get("id")
 	id := floatId.(uint)
 
+	libId, _ := c.Get("libid")
+
 	// TODO This needs to be validated using issue registry table
 	// var issueReq models.RequestEvents
 	// if input.RequestType == "return"{
@@ -50,7 +52,7 @@ func RaiseIssueRequest(c *gin.Context) {
 
 	// TODO temporary check, better implementation using registry table to be done
 	var issueReq models.RequestEvents
-	if err := config.DB.Where("reader_Id= ? AND book_ID = ? ", id, input.ISBN).Take(&issueReq).Error; err == nil {
+	if err := config.DB.Where("libid = ? AND reader_Id= ? AND book_ID = ? ",libId, id, input.ISBN).Take(&issueReq).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Duplicate request!",
 		})
@@ -60,6 +62,7 @@ func RaiseIssueRequest(c *gin.Context) {
 	reqEvent := models.RequestEvents{
 		BookID:      input.ISBN,
 		ReaderID:    id,
+		LibID: libId.(uint),
 		RequestType: input.RequestType,
 		RequestDate: time.Now(),
 	}
