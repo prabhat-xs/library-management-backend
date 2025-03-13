@@ -17,18 +17,17 @@ func SetupRoutes(r *gin.Engine) {
 
 	owner := r.Group("v1/owner/").Use(middleware.AuthMiddleware("Owner"))
 	{
-		auth.PATCH("/password", controllers.UpdatePassword)
-		owner.POST("/books/add", controllers.AddBook)
-		owner.POST("/requests/approve", controllers.ProcessIssueRequest)
+		owner.POST("/password", controllers.UpdatePassword)
 		owner.POST("/create-admin", controllers.CreateAdminUser)
-		owner.POST("/create-reader", controllers.CreateReaderUser)
 	}
+
 	admin := r.Group("v1/admin/").Use(middleware.AuthMiddleware("Admin", "Owner"))
 	{
-		auth.PATCH("/password", controllers.UpdatePassword)
+		admin.POST("/password", controllers.UpdatePassword)
 		admin.POST("/create-reader", controllers.CreateReaderUser)
 		admin.GET("/books/search", controllers.SearchBook)
 		admin.POST("/books/add", controllers.AddBook)
+		admin.PATCH("/books/:isbn", controllers.UpdateBook)
 		admin.DELETE("/books/:isbn", controllers.DeleteBook)
 		admin.GET("/requests/all", controllers.ListRequests)
 		admin.POST("/requests/process", controllers.ProcessIssueRequest)
@@ -36,7 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	reader := r.Group("v1/reader/").Use(middleware.AuthMiddleware("Reader"))
 	{
-		auth.PATCH("/password", controllers.UpdatePassword)
+		reader.POST("/password", controllers.UpdatePassword)
 		reader.GET("/books/search", controllers.SearchBook)
 		reader.POST("/books/requests", controllers.RaiseIssueRequest)
 	}

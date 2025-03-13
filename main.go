@@ -15,12 +15,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
 	config.ConnectDatabase()
-	r := gin.Default()
 
+	r := gin.Default()
+	
 	routes.SetupRoutes(r)
 	r.Use(cors.Default())
-
+	
 	r.Run()
 }

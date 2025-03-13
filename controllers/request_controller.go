@@ -14,7 +14,7 @@ import (
 func RaiseIssueRequest(c *gin.Context) {
 	var input struct {
 		ISBN        uint   `binding:"required"`
-		RequestType string `binding:"required"` 
+		RequestType string `binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -55,7 +55,6 @@ func RaiseIssueRequest(c *gin.Context) {
 			"error": "Duplicate request!",
 		})
 		return
-
 	}
 
 	reqEvent := models.RequestEvents{
@@ -64,7 +63,12 @@ func RaiseIssueRequest(c *gin.Context) {
 		RequestType: input.RequestType,
 		RequestDate: time.Now(),
 	}
-	config.DB.Create(&reqEvent)
+	if err := config.DB.Create(&reqEvent).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "Issue request raised successfully"})
 }
 
@@ -122,12 +126,14 @@ func ProcessIssueRequest(c *gin.Context) {
 		}
 
 		now := time.Now()
-		req.ApprovalDate = &now
-		req.ApproverID = &ApproverID
+		req.ProcessingDate = &now
+		req.AdminID = &ApproverID
 		tx.Save(&req)
 
+		// ISSUE REQUEST APPROVED, ADD THIS RECORD INTO ISSUE REGISTRY
 		issueReg := models.IssueRegistry{
 			ISBN:               book.ISBN,
+			LibID:              req.LibID,
 			ReaderID:           req.ReaderID,
 			IssueApproverID:    ApproverID,
 			IssueStatus:        input.Action,
@@ -146,5 +152,6 @@ func ProcessIssueRequest(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Issue request approved successfully"})
 }
