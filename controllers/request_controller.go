@@ -52,7 +52,7 @@ func RaiseIssueRequest(c *gin.Context) {
 
 	// TODO temporary check, better implementation using registry table to be done
 	var issueReq models.RequestEvents
-	if err := config.DB.Where("libid = ? AND reader_Id= ? AND book_ID = ? ",libId, id, input.ISBN).Take(&issueReq).Error; err == nil {
+	if err := config.DB.Where("libid = ? AND reader_Id= ? AND book_ID = ? ", libId, id, input.ISBN).Take(&issueReq).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Duplicate request!",
 		})
@@ -62,7 +62,7 @@ func RaiseIssueRequest(c *gin.Context) {
 	reqEvent := models.RequestEvents{
 		BookID:      input.ISBN,
 		ReaderID:    id,
-		LibID: libId.(uint),
+		LibID:       libId.(uint),
 		RequestType: input.RequestType,
 		RequestDate: time.Now(),
 	}
@@ -99,7 +99,7 @@ func ProcessIssueRequest(c *gin.Context) {
 		return
 	}
 
-	if input.Action != "approve" && input.Action != "reject" {
+	if !(input.Action == "approve" || input.Action == "reject" || input.Action == "Approve" || input.Action == "Reject") {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Allowed actions are approve or reject",
 		})

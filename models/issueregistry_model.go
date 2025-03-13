@@ -8,7 +8,7 @@ type IssueRegistry struct {
 	LibID              uint       `gorm:"not null"`
 	ReaderID           uint       `gorm:"not null" binding:"required" json:"readerID"`
 	IssueApproverID    uint       `gorm:"not null" binding:"required" json:"issueapproverID"`
-	IssueStatus        string     `gorm:"not null;check:issue_status IN ('Issued','Returned')" json:"status"`
+	IssueStatus        string     `gorm:"not null;check:issue_status IN ('Approve','Reject','approve','reject')" json:"status"`
 	IssueDate          time.Time  `gorm:"not null" binding:"required" json:"date"`
 	ExpectedReturnDate time.Time  `gorm:"not null" binding:"required" json:"expected_return_date"`
 	ReturnDate         *time.Time `json:"return_date"`
