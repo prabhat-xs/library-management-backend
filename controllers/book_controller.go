@@ -10,16 +10,16 @@ import (
 )
 
 func AddBook(c *gin.Context) {
-	var book models.Books	
-	libId,_ := c.Get("libid")
-	
+	var book models.Books
+	libId, _ := c.Get("libid")
+
 	var lib models.Library
 	if err := config.DB.First(&lib, libId).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 	}
-	
+
 	book.LibID = libId.(uint)
 	book.Library = lib
 	if err := c.ShouldBindJSON(&book); err != nil {
@@ -75,23 +75,9 @@ func SearchBook(c *gin.Context) {
 
 	// EXPECTED DATE A BOOK BECOMES AVAILABLE
 	if err := query.First(&book).Error; err != nil {
-		var nextAvailable time.Time
-		config.DB.Raw(`
-			SELECT return_date FROM issue_requests 
-			WHERE book_id = ? AND libid = ? AND status = 'Issued' 
-			ORDER BY return_date ASC LIMIT 1`, book.ISBN,libId).Scan(&nextAvailable)
-
-		if !nextAvailable.IsZero() {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":                      "Book is currently unavailable",
-				"expected_availability_date": nextAvailable.Format("2006-01-02"),
-			})
-		} else {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Book not found!"})
-		}
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-
 	var bookDetails struct {
 		ISBN, Available_copies             uint
 		Title, Authors, Publisher, Version string
@@ -103,6 +89,30 @@ func SearchBook(c *gin.Context) {
 	bookDetails.Version = book.Version
 	bookDetails.Available_copies = book.Available_copies
 
+	if book.Available_copies == 0 {
+		var nextAvailable time.Time
+		if e := config.DB.Raw(`
+			SELECT expected_return_date FROM issue_registries 
+			WHERE isbn = ? AND lib_id = ? AND issue_status ILIKE 'approve' 
+			ORDER BY expected_return_date ASC LIMIT 1`, book.ISBN, libId).Scan(&nextAvailable).Error; e != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": e.Error(),
+			})
+			return
+		}
+
+		if !nextAvailable.IsZero() {
+			c.JSON(http.StatusOK, gin.H{
+				"Message":                      "Book is currently unavailable",
+				"expected_availability_date": nextAvailable.Format("2006-01-02"),
+				"book" : bookDetails,
+			})
+			return
+		}
+	}
+
+	
+
 	c.JSON(http.StatusOK, gin.H{"book": bookDetails})
 }
 
@@ -110,7 +120,7 @@ func SearchBook(c *gin.Context) {
 func UpdateBook(c *gin.Context) {
 	var input struct {
 		ISBN             uint   `json:"isbn" binding:"required"`
-		LibID            uint   `json:"lib_id"` 
+		LibID            uint   `json:"lib_id"`
 		Title            string `json:"title"`
 		Authors          string `json:"authors"`
 		Publisher        string `json:"publisher"`
@@ -152,18 +162,30 @@ func UpdateBook(c *gin.Context) {
 		book.Version = input.Version
 		flag = false
 	}
+
 	if input.TotalCopies != 0 {
+		avaialbe_copies := book.Available_copies + input.TotalCopies - book.Total_copies
+		if avaialbe_copies < 0 {
+			book.Available_copies = input.TotalCopies
+		}
 		book.Total_copies = input.TotalCopies
+
 		flag = false
 	}
 	if input.Available_copies != 0 {
 		book.Available_copies = input.Available_copies
+		if book.Available_copies > book.Total_copies {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Available copies can not be more than toatl copies",
+			})
+			return
+		}
 		flag = false
 	}
 
 	// TODO If nothing to update, return error
 	if flag {
-		c.JSON(http.StatusBadRequest,gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Nothing to update",
 		})
 		return
