@@ -12,15 +12,15 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		auth.POST("/signup", controllers.Signup)
 		auth.POST("/login", controllers.Login)
-		auth.GET("/logout", controllers.Logout)
 	}
-
+	
 	owner := r.Group("v1/owner/").Use(middleware.AuthMiddleware("Owner"))
 	{
 		owner.POST("/password", controllers.UpdatePassword)
 		owner.POST("/create-admin", controllers.CreateAdminUser)
+		owner.GET("/logout", controllers.Logout)
 	}
-
+	
 	admin := r.Group("v1/admin/").Use(middleware.AuthMiddleware("Admin", "Owner"))
 	{
 		admin.POST("/password", controllers.UpdatePassword)
@@ -31,12 +31,14 @@ func SetupRoutes(r *gin.Engine) {
 		admin.DELETE("/books/:isbn", controllers.DeleteBook)
 		admin.GET("/requests/all", controllers.ListRequests)
 		admin.POST("/requests/process", controllers.ProcessRequest)
+		admin.GET("/logout", controllers.Logout)
 	}
-
+	
 	reader := r.Group("v1/reader/").Use(middleware.AuthMiddleware("Reader"))
 	{
 		reader.POST("/password", controllers.UpdatePassword)
 		reader.GET("/books/search", controllers.SearchBook)
 		reader.POST("/books/requests", controllers.RaiseBookRequest)
+		reader.GET("/logout", controllers.Logout)
 	}
 }
