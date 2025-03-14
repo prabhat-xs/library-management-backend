@@ -24,7 +24,7 @@ func RaiseBookRequest(c *gin.Context) {
 
 	if !(input.RequestType == "issue" || input.RequestType == "return") {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request type!",
+			"error": "Request types can be issue OR return only!",
 		})
 		return
 	}
@@ -70,7 +70,7 @@ func RaiseBookRequest(c *gin.Context) {
 	// BOOK RETURN REQUEST
 	var issueReg models.IssueRegistry
 
-	if err := config.DB.Where("isbn = ?", input.ISBN).Where("readerID = ?", id).Where("status = ?", "issued").First(&issueReg); err != nil {
+	if err := config.DB.Where("isbn = ?", input.ISBN).Where("reader_ID = ?", id).Where("status = ?", "issued").First(&issueReg).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "No issue request exists corresponding to this return request",
 		})
@@ -115,7 +115,7 @@ func handleReturnRequest(c *gin.Context, returnapproverID, reqId uint) {
 	var req models.RequestEvents
 	// FETCHING REQUEST DETAILS
 	if err := config.DB.First(&req, reqId).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
@@ -130,8 +130,9 @@ func handleReturnRequest(c *gin.Context, returnapproverID, reqId uint) {
 		return
 	}
 
-	retRegistry.ReturnApproverID = returnapproverID
-	retRegistry.ReturnDate = time.Now()
+	retRegistry.ReturnApproverID = &returnapproverID
+	now := time.Now()
+	retRegistry.ReturnDate = &now
 	retRegistry.Status = "returned"
 
 	if err := config.DB.Save(&retRegistry).Error; err != nil {
@@ -147,12 +148,28 @@ func handleReturnRequest(c *gin.Context, returnapproverID, reqId uint) {
 		})
 	}
 
+	// UPDATING BOOK COUNT
+	var book models.Books
+	if err := config.DB.Where("isbn = ? AND lib_id = ?", retRegistry.ISBN, retRegistry.LibID).First(&book).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	book.Available_copies += 1
+	if err := config.DB.Save(&book).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Error while updating book available copies",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Return request processed successfully!",
 	})
 }
 
-func ProcessIssueRequest(c *gin.Context) {
+func ProcessRequest(c *gin.Context) {
 	var input struct {
 		Action  string `binding:"required" json:"action"`
 		Reqtype string `binding:"required" json:"reqtype"`
@@ -171,6 +188,7 @@ func ProcessIssueRequest(c *gin.Context) {
 	// HANDLING BOOK RETURNS
 	if input.Reqtype == "return" {
 		handleReturnRequest(c, ApproverID, input.ReqID)
+		return
 	}
 
 	if !(input.Action == "approve" || input.Action == "reject" || input.Action == "Approve" || input.Action == "Reject") {
@@ -181,16 +199,17 @@ func ProcessIssueRequest(c *gin.Context) {
 	}
 
 	if input.Action == "reject" {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Request processed succesfully! Issue req rejected!",
-		})
-
 		// REMOVE ENTRY FROM REQUESTS TABLE
 		if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
+			return
 		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Request processed succesfully! Issue req rejected!",
+		})
+
 		return
 	}
 
@@ -205,12 +224,12 @@ func ProcessIssueRequest(c *gin.Context) {
 			return errors.New("no copies available")
 		}
 
-		now := time.Now()
-		req.ProcessingDate = &now
-		req.AdminID = &ApproverID
-		tx.Save(&req)
+		if tx.Delete(&req).Error != nil {
+			return errors.New("request not found")
+		}
 
 		// ISSUE REQUEST APPROVED, ADD THIS RECORD INTO ISSUE REGISTRY
+		now := time.Now()
 		issueReg := models.IssueRegistry{
 			ISBN:               book.ISBN,
 			LibID:              req.LibID,
@@ -220,7 +239,11 @@ func ProcessIssueRequest(c *gin.Context) {
 			IssueDate:          now,
 			ExpectedReturnDate: now.AddDate(0, 0, 14),
 		}
-		tx.Create(&issueReg)
+		if err := tx.Create(&issueReg).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
 
 		book.Available_copies -= 1
 		tx.Save(&book)
@@ -231,13 +254,6 @@ func ProcessIssueRequest(c *gin.Context) {
 	if txErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
 		return
-	}
-
-	// REMOVE ENTRY FROM REQUESTS MODEL
-	if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Issue request approved successfully"})
