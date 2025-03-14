@@ -11,7 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func RaiseIssueRequest(c *gin.Context) {
+// RAISING ISSUE/RETURN REQUESTS
+func RaiseBookRequest(c *gin.Context) {
 	var input struct {
 		ISBN        uint   `binding:"required"`
 		RequestType string `binding:"required"`
@@ -39,40 +40,60 @@ func RaiseIssueRequest(c *gin.Context) {
 
 	libId, _ := c.Get("libid")
 
-	// TODO This needs to be validated using issue registry table
-	// var issueReq models.RequestEvents
-	// if input.RequestType == "return"{
-	// 	if err:= config.DB.Where("bookID = ?",input.ISBN).Where("readerID = ?",id).Where("request_type = ?","issue").First(&issueReq); err != nil {
-	// 		c.JSON(http.StatusBadRequest,gin.H{
-	// 			"error": "No issue request exists corresponding to this return request",
-	// 		})
-	// 		return
-	// 	}
-	// }
+	// CHECKING IF THE REQUEST EXISTS ALREADY
+	var bookReq models.RequestEvents
+	if input.RequestType == "issue" {
+		if err := config.DB.Where("libid = ? AND reader_Id= ? AND book_ID = ? ", libId, id, input.ISBN).Take(&bookReq).Error; err == nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Duplicate request!",
+			})
+			return
+		}
 
-	// TODO temporary check, better implementation using registry table to be done
-	var issueReq models.RequestEvents
-	if err := config.DB.Where("libid = ? AND reader_Id= ? AND book_ID = ? ", libId, id, input.ISBN).Take(&issueReq).Error; err == nil {
+		bookReq.BookID = input.ISBN
+		bookReq.ReaderID = id
+		bookReq.LibID = libId.(uint)
+		bookReq.RequestType = input.RequestType
+		bookReq.RequestDate = time.Now()
+
+		// CREATING BOOK REQUEST
+		if err := config.DB.Create(&bookReq).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Issue request raised successfully"})
+		return
+	}
+
+	// BOOK RETURN REQUEST
+	var issueReg models.IssueRegistry
+
+	if err := config.DB.Where("isbn = ?", input.ISBN).Where("readerID = ?", id).Where("status = ?", "issued").First(&issueReg); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Duplicate request!",
+			"error": "No issue request exists corresponding to this return request",
 		})
 		return
 	}
 
-	reqEvent := models.RequestEvents{
-		BookID:      input.ISBN,
-		ReaderID:    id,
-		LibID:       libId.(uint),
-		RequestType: input.RequestType,
-		RequestDate: time.Now(),
-	}
-	if err := config.DB.Create(&reqEvent).Error; err != nil {
+	bookReq.BookID = input.ISBN
+	bookReq.ReaderID = id
+	bookReq.LibID = libId.(uint)
+	bookReq.RequestType = input.RequestType
+	bookReq.RequestDate = time.Now()
+
+	if err := config.DB.Create(&bookReq).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Issue request raised successfully"})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Return request raised successfully",
+	})
+
 }
 
 func ListRequests(c *gin.Context) {
@@ -89,14 +110,67 @@ func ListRequests(c *gin.Context) {
 	})
 }
 
+// HANDLING RETURN REQUEST
+func handleReturnRequest(c *gin.Context, returnapproverID, reqId uint) {
+	var req models.RequestEvents
+	// FETCHING REQUEST DETAILS
+	if err := config.DB.First(&req, reqId).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// UPDATING THE ISSUE REGISTRY
+	var retRegistry models.IssueRegistry
+	if err := config.DB.Where("isbn = ? AND reader_id = ? AND lib_id = ?", req.BookID, req.ReaderID, req.LibID).First(&retRegistry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	retRegistry.ReturnApproverID = returnapproverID
+	retRegistry.ReturnDate = time.Now()
+	retRegistry.Status = "returned"
+
+	if err := config.DB.Save(&retRegistry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if err := config.DB.Delete(&req).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Return request processed successfully!",
+	})
+}
+
 func ProcessIssueRequest(c *gin.Context) {
 	var input struct {
-		Action string `binding:"required" json:"action"`
-		ReqID  uint   `binding:"required" json:"reqid"`
+		Action  string `binding:"required" json:"action"`
+		Reqtype string `binding:"required" json:"reqtype"`
+		ReqID   uint   `binding:"required" json:"reqid"`
 	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// GETTING ADMIN ID from JWT
+	id, _ := c.Get("id")
+	ApproverID := id.(uint)
+
+	// HANDLING BOOK RETURNS
+	if input.Reqtype == "return" {
+		handleReturnRequest(c, ApproverID, input.ReqID)
 	}
 
 	if !(input.Action == "approve" || input.Action == "reject" || input.Action == "Approve" || input.Action == "Reject") {
@@ -110,12 +184,15 @@ func ProcessIssueRequest(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Request processed succesfully! Issue req rejected!",
 		})
+
+		// REMOVE ENTRY FROM REQUESTS TABLE
+		if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
 		return
 	}
-
-	// GETTING ADMIN ID from JWT
-	id, _ := c.Get("id")
-	ApproverID := id.(uint)
 
 	txErr := config.DB.Transaction(func(tx *gorm.DB) error {
 		var req models.RequestEvents
@@ -139,7 +216,7 @@ func ProcessIssueRequest(c *gin.Context) {
 			LibID:              req.LibID,
 			ReaderID:           req.ReaderID,
 			IssueApproverID:    ApproverID,
-			IssueStatus:        input.Action,
+			Status:             "issued",
 			IssueDate:          now,
 			ExpectedReturnDate: now.AddDate(0, 0, 14),
 		}
@@ -154,6 +231,13 @@ func ProcessIssueRequest(c *gin.Context) {
 	if txErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": txErr.Error()})
 		return
+	}
+
+	// REMOVE ENTRY FROM REQUESTS MODEL
+	if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Issue request approved successfully"})
