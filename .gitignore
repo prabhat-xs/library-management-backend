@@ -4,3 +4,4 @@ tmp
 utils/vendor
 cover.out
 coverage.html
+*.yaml
