@@ -115,7 +115,7 @@ func handleReturnRequest(c *gin.Context, returnapproverID, reqId uint) {
 	var req models.RequestEvents
 	// FETCHING REQUEST DETAILS
 	if err := config.DB.First(&req, reqId).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
@@ -200,7 +200,8 @@ func ProcessRequest(c *gin.Context) {
 
 	if input.Action == "reject" {
 		// REMOVE ENTRY FROM REQUESTS TABLE
-		if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
+		// if err := config.DB.Model(&models.RequestEvents{}).Delete(input.ReqID).Error; err != nil {
+		if err := config.DB.Where("req_id = ?", input.ReqID).Delete(&models.RequestEvents{}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})

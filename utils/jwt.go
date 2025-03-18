@@ -8,6 +8,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type JWTValidatorFunc func(token string) (uint, uint, string, string, error)
+
 func GenerateJWT(id uint, LibID uint, email, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"email": email,

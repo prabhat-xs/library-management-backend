@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,11 +16,10 @@ func AddBook(c *gin.Context) {
 
 	var lib models.Library
 	if err := config.DB.First(&lib, libId).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 	}
-
 	book.LibID = libId.(uint)
 	book.Library = lib
 	if err := c.ShouldBindJSON(&book); err != nil {
@@ -64,8 +64,13 @@ func SearchBook(c *gin.Context) {
 	var book models.Books
 	query := config.DB.Where("lib_id = ?", libId)
 	if input.Title != "" {
-		query = query.Where("title ILIKE ?", "%"+input.Title+"%")
+		if config.DB.Dialector.Name() == "sqlite" {
+			query = query.Where("title LIKE ?", "%"+input.Title+"%")
+		} else {
+			query = query.Where("title ILIKE ?", "%"+input.Title+"%")
+		}
 	}
+
 	if input.ISBN != 0 {
 		query = query.Where("isbn = ?", input.ISBN)
 	}
@@ -103,15 +108,13 @@ func SearchBook(c *gin.Context) {
 
 		if !nextAvailable.IsZero() {
 			c.JSON(http.StatusOK, gin.H{
-				"Message":                      "Book is currently unavailable",
+				"Message":                    "Book is currently unavailable",
 				"expected_availability_date": nextAvailable.Format("2006-01-02"),
-				"book" : bookDetails,
+				"book":                       bookDetails,
 			})
 			return
 		}
 	}
-
-	
 
 	c.JSON(http.StatusOK, gin.H{"book": bookDetails})
 }
@@ -176,7 +179,7 @@ func UpdateBook(c *gin.Context) {
 		book.Available_copies = input.Available_copies
 		if book.Available_copies > book.Total_copies {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Available copies can not be more than toatl copies",
+				"error": "Available copies can not be more than total copies",
 			})
 			return
 		}
@@ -197,7 +200,13 @@ func UpdateBook(c *gin.Context) {
 
 // DELETING A BOOK
 func DeleteBook(c *gin.Context) {
-	isbn := c.Param("isbn")
+	isbnStr := c.Param("isbn")
+
+	isbn, err := strconv.ParseUint(isbnStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ISBN format"})
+		return
+	}
 
 	// GET ADMIN ID
 	email, _ := c.Get("email")

@@ -19,7 +19,7 @@ func Signup(c *gin.Context) {
 		Name, Email, Password, ContactNumber, LibraryName string `binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing input fields"})
 		return
 	}
 
@@ -46,7 +46,7 @@ func Signup(c *gin.Context) {
 	}
 	config.DB.Create(&user)
 	c.JSON(http.StatusOK, gin.H{"message": "Owner account created successfully"})
-}
+	}
 
 // USER LOGIN
 func Login(c *gin.Context) {
@@ -56,7 +56,7 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
 		return
 	}
 
@@ -166,8 +166,8 @@ func CreateReaderUser(c *gin.Context) {
 // UPDATE USER PASSWORD
 func UpdatePassword(c *gin.Context) {
 	var input struct {
-		oldPassword string `binding:"required"`
-		newPassword string `binding:"required"`
+		OldPassword string `binding:"required"`
+		NewPassword string `binding:"required"`
 	}
 
 	// INPUT VALIDATION
@@ -187,13 +187,13 @@ func UpdatePassword(c *gin.Context) {
 	}
 
 	// EXISTING PASSWORD VERIFICATION
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.oldPassword)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.OldPassword)) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Wrong Password"})
 		return
 	}
 
 	// NEW PASSWORD HASHING AND SAVING
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.newPassword), bcrypt.DefaultCost) //; err != nil {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost) //; err != nil {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Bcrypt failed to generate password!",
@@ -205,7 +205,7 @@ func UpdatePassword(c *gin.Context) {
 	config.DB.Save(&user)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Pasword updated successfully!",
+		"message": "Password updated successfully!",
 	})
 
 }
