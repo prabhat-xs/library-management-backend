@@ -122,7 +122,7 @@ func SearchBook(c *gin.Context) {
 // UPDATING THE DETAILS OF A BOOK
 func UpdateBook(c *gin.Context) {
 	var input struct {
-		ISBN             uint   `json:"isbn" binding:"required"`
+		ISBN             uint   `json:"isbn" `
 		LibID            uint   `json:"lib_id"`
 		Title            string `json:"title"`
 		Authors          string `json:"authors"`
@@ -131,7 +131,7 @@ func UpdateBook(c *gin.Context) {
 		TotalCopies      uint   `json:"total_copies"`
 		Available_copies uint   `json:"available_copies"`
 	}
-
+	// input.ISBN = c.Param("isbn")
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -141,7 +141,7 @@ func UpdateBook(c *gin.Context) {
 
 	// SEARCHING BOOK
 	var book models.Books
-	if err := config.DB.Where("isbn = ? AND lib_id = ?", input.ISBN, input.LibID).First(&book).Error; err != nil {
+	if err := config.DB.Where("isbn = ? AND lib_id = ?", c.Param("isbn"), input.LibID).First(&book).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
 		return
 	}

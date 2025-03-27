@@ -11,12 +11,12 @@ func AuthMiddleware(jwtValidator utils.JWTValidatorFunc, roles ...string) gin.Ha
 	return func(c *gin.Context) {
 		tokenString, err := c.Cookie("token")
 		if err != nil || tokenString == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"errorMsg": "Unauthorized", "error": err.Error()})
 			return
 		}
 
 		id, LibID, email, role, err := jwtValidator(tokenString)
-		if err != nil { 
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
