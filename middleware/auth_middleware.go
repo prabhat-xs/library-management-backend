@@ -16,12 +16,12 @@ func AuthMiddleware(jwtValidator utils.JWTValidatorFunc, roles ...string) gin.Ha
 		}
 
 		id, LibID, email, role, err := jwtValidator(tokenString)
-		if err != nil { // 🔹 Return 401 if token validation fails
+		if err != nil { 
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
 
-		if !contains(roles, role) { // 🔹 Return 403 if role authorization fails
+		if !contains(roles, role) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}

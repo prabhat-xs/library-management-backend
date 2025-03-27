@@ -198,6 +198,51 @@ func UpdateBook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Book updated successfully"})
 }
 
+// Show Books
+func ShowBooks(c *gin.Context) {
+	libid, _ := c.Get("libid")
+
+	var books []models.Books
+	if err := config.DB.Where("lib_id = ?", libid).Find(&books).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"books": books,
+	})
+
+}
+
+// RETURN BORROWED BOOK BY READER
+func BorrowedBooks(c *gin.Context) {
+	id, _ := c.Get("id")
+	libId, _ := c.Get("libid")
+
+	var issues []models.IssueRegistry
+	if err := config.DB.Where("reader_id = ? AND lib_id = ?", id, libId).Find(&issues).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	var response []map[string]interface{}
+	for _, val := range issues {
+		response = append(response, map[string]any{
+			"ISBN":       val.ISBN,
+			"Status":     val.Status,
+			"Issue_Date": val.IssueDate,
+			"Due_Date":   val.ExpectedReturnDate,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"response": response,
+	})
+}
+
 // DELETING A BOOK
 func DeleteBook(c *gin.Context) {
 	isbnStr := c.Param("isbn")

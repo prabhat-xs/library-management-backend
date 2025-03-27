@@ -96,6 +96,23 @@ func RaiseBookRequest(c *gin.Context) {
 
 }
 
+// READERS PENDING REQUESTS
+func MyRequests(c *gin.Context) {
+	id, _ := c.Get("id")
+	libId, _ := c.Get("libid")
+
+	var reqs []models.RequestEvents
+	if err := config.DB.Where("readerid = ? AND libid = ?", id, libId).Find(&reqs).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "No pending requests!",
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+
+		"requests": reqs,
+	})
+}
+
 func ListRequests(c *gin.Context) {
 	var requests []models.RequestEvents
 

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	// "log"
 	"net/http"
 	"os"
 
@@ -19,7 +20,7 @@ func Signup(c *gin.Context) {
 		Name, Email, Password, ContactNumber, LibraryName string `binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing input fields"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -46,7 +47,7 @@ func Signup(c *gin.Context) {
 	}
 	config.DB.Create(&user)
 	c.JSON(http.StatusOK, gin.H{"message": "Owner account created successfully"})
-	}
+}
 
 // USER LOGIN
 func Login(c *gin.Context) {
@@ -80,7 +81,17 @@ func Login(c *gin.Context) {
 	prodMode := os.Getenv("PROD_MODE") == "true"
 	c.SetCookie("token", token, 3600*72, "/", "localhost", prodMode, true)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+	var returnUser = models.User{
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"user":    returnUser,
+		"token": token,
+	})
 }
 
 // CREATING ADMIN USER
@@ -208,6 +219,124 @@ func UpdatePassword(c *gin.Context) {
 		"message": "Password updated successfully!",
 	})
 
+}
+
+// LIST ALL READERS
+func ListAllUsers(c *gin.Context) {
+	libid, _ := c.Get("libid")
+	var users []models.User
+	if err := config.DB.Where("lib_id = ? ", libid).Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"admins": users,
+	})
+
+}
+
+// UPDATE USER DETAILS
+func UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+	libid, _ := c.Get("libid")
+	role, _ := c.Get("role")
+
+	var input struct {
+		Name          string
+		Role          string
+		Email         string
+		Password      string
+		ContactNumber string
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Nothing to update!",
+		})
+		return
+	}
+	var user models.User
+	if err := config.DB.Where("lib_id = ?", libid).First(&user, id).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if (role == "Admin" && user.Role != "Reader") || role == "Reader" || (role == "Admin" && input.Role != "") {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Admin can't perform this operation!",
+		})
+		return
+	}
+	flag := true
+	if input.Role != "" {
+		user.Role = input.Role
+		flag = false
+	}
+	if input.Name != "" {
+		user.Name = input.Name
+		flag = false
+	}
+	if input.Email != "" {
+		user.Email = input.Email
+		flag = false
+	}
+	if input.Password != "" {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		user.Password = string(hashed)
+		flag = false
+	}
+	if input.ContactNumber != "" {
+		user.Contact_number = input.ContactNumber
+		flag = false
+	}
+
+	if flag {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Nothing to update",
+		})
+		return
+	}
+
+	if err := config.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User details updated successfully!",
+	})
+}
+
+// DELETE USER
+func DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	role, _ := c.Get("role")
+	libid, _ := c.Get("libid")
+
+	var user models.User
+	if err := config.DB.Where("libid = ?", libid).First(&user, id).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "User does not exists",
+		})
+	}
+	if (role == "admin" && user.Role != "reader") || role == "reader" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized!",
+		})
+	}
+
+	if err := config.DB.Delete(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User deleted successfully!",
+	})
 }
 
 // LOGOUT FUNCTIONALITY

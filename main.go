@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	// "net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/prabhat-xs/library-management-backend/config"
 	"github.com/prabhat-xs/library-management-backend/routes"
-	cors "github.com/rs/cors/wrapper/gin"
 )
 
 func main() {
@@ -18,9 +21,17 @@ func main() {
 	config.ConnectDatabase()
 
 	r := gin.Default()
-	
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+	fmt.Println("Cors middleware setup successfully!")
+
 	routes.SetupRoutes(r)
-	r.Use(cors.Default())
-	
+
 	r.Run()
 }
