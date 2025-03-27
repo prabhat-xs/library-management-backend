@@ -103,12 +103,13 @@ func MyRequests(c *gin.Context) {
 
 	var reqs []models.RequestEvents
 	if err := config.DB.Where("readerid = ? AND libid = ?", id, libId).Find(&reqs).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "No pending requests!",
+		c.JSON(http.StatusOK, gin.H{
+			"message": "No pending requests!",
 		})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-
+		"message":  "Success",
 		"requests": reqs,
 	})
 }
@@ -118,11 +119,13 @@ func ListRequests(c *gin.Context) {
 
 	if err := config.DB.Find(&requests).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "Error",
 		})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
+		"message":  "Success",
 		"requests": requests,
 	})
 }

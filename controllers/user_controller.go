@@ -90,7 +90,6 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"user":    returnUser,
-		"token": token,
 	})
 }
 
@@ -231,7 +230,7 @@ func ListAllUsers(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"admins": users,
+		"users": users,
 	})
 
 }
